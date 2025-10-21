@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Brainly Moderation Panel PLUS5 (Fixed Size + Drag + Resize)
+// @name         Brainly Moderation Panel PLUS5 (Mobile + Fixed Size + Drag + Resize)
 // @namespace    http://tampermonkey.net/
-// @version      2.1
-// @description  Sabit boyutlu, sonradan büyütülebilen Roma formu moderasyon paneli
+// @version      2.2
+// @description  Sabit boyutlu ama büyütülebilen, dokunmatik uyumlu Roma formu moderasyon paneli
 // @match        *://*/*
 // @grant        none
 // @run-at       document-idle
@@ -10,7 +10,7 @@
 
 (function(){
   'use strict';
-  const PREF_KEY = "bm_panel_prefs_v7";
+  const PREF_KEY = "bm_panel_prefs_v8";
   const saved = JSON.parse(localStorage.getItem(PREF_KEY) || "{}");
   let isDarkMode = saved.isDarkMode ?? window.matchMedia('(prefers-color-scheme: dark)').matches;
   let autoSync = saved.autoSync ?? true;
@@ -30,7 +30,7 @@
 
   const toggleBtn=document.createElement('button');
   Object.assign(toggleBtn.style,{
-    position:'fixed',top:'14px',right:'14px',padding:'5px 9px',
+    position:'fixed',top:'14px',right:'14px',padding:'7px 11px',
     backgroundColor:c.accent,color:'#fff',border:'none',borderRadius:'5px',
     cursor:'pointer',zIndex:9999999,fontWeight:'bold',fontSize:'13px'
   });
@@ -39,22 +39,24 @@
 
   const panel=document.createElement('div');
   Object.assign(panel.style,{
-    position:'fixed',top:panelY?panelY+'px':'70px',right:panelX?null:'10px',left:panelX?panelX+'px':null,
-    width:panelWidth+'px',height:panelHeight+'px',
+    position:'fixed',top:panelY?panelY+'px':'70px',left:panelX?panelX+'px':'5vw',
+    width:Math.min(panelWidth, window.innerWidth*0.9)+'px',
+    height:Math.min(panelHeight, window.innerHeight*0.8)+'px',
     background:c.bg,color:c.fg,border:`1.5px solid ${c.border}`,
     zIndex:9999998,fontFamily:'Arial,sans-serif',fontSize:'12.5px',
     borderRadius:'8px',overflowY:'auto',resize:'both',
-    minWidth:'200px',minHeight:'250px',maxWidth:'600px',maxHeight:'800px',
+    minWidth:'200px',minHeight:'250px',maxWidth:'90vw',maxHeight:'85vh',
     boxSizing:'border-box',paddingBottom:'10px',
-    boxShadow:'0 3px 10px rgba(0,0,0,0.25)',display:'none'
+    boxShadow:'0 3px 10px rgba(0,0,0,0.25)',display:'none',
+    touchAction:'none' // mobil sürükleme düzgün çalışsın
   });
 
   const header=document.createElement('div');
   header.textContent="Brainly Moderation Panel";
   Object.assign(header.style,{
-    background:c.header,color:'#fff',padding:'7px',cursor:'move',
+    background:c.header,color:'#fff',padding:'8px',cursor:'move',
     fontWeight:'600',borderTopLeftRadius:'8px',borderTopRightRadius:'8px',
-    textAlign:'center',fontSize:'12.5px',userSelect:'none'
+    textAlign:'center',fontSize:'13px',userSelect:'none',touchAction:'none'
   });
   panel.appendChild(header);
 
@@ -94,7 +96,8 @@
   style.textContent=`#bm_user_link,#bm_action,#bm_policy,#bm_market{width:100%;padding:6px;margin:5px 0 8px 0;box-sizing:border-box;border-radius:4px;font-size:12px;outline:none;}
   #bm_send,#bm_toggleTheme,#bm_syncToggle{width:100%;padding:7px;margin-top:5px;border:none;border-radius:5px;cursor:pointer;font-weight:bold;font-size:12.5px;transition:background 0.2s ease;}
   #bm_send:hover{opacity:0.9;}#bm_toggleTheme:hover,#bm_syncToggle:hover{filter:brightness(1.1);}
-  #bm_status{margin-top:5px;font-family:monospace;font-size:11.5px;white-space:pre-wrap;}`;
+  #bm_status{margin-top:5px;font-family:monospace;font-size:11.5px;white-space:pre-wrap;}
+  @media (max-width:600px){#bm_user_link,#bm_action,#bm_policy,#bm_market{font-size:13px;} #bm_send,#bm_toggleTheme,#bm_syncToggle{font-size:13px;}}`;
   document.head.appendChild(style);
 
   const applyTheme=()=>{c=getTheme();panel.style.background=c.bg;panel.style.color=c.fg;panel.style.border=`1.5px solid ${c.border}`;header.style.background=c.header;
@@ -109,10 +112,14 @@
   document.getElementById('bm_syncToggle').addEventListener('click',()=>{autoSync=!autoSync;document.getElementById('bm_syncToggle').textContent=`🔁 Otomatik Senkron: ${autoSync?"Açık":"Kapalı"}`;savePrefs();});
   toggleBtn.addEventListener('click',()=>{panel.style.display=panel.style.display==="none"?"block":"none";});
 
+  // Masaüstü ve dokunmatik sürükleme
   let dragging=false,offsetX=0,offsetY=0;
   header.addEventListener('mousedown',e=>{dragging=true;offsetX=e.clientX-panel.offsetLeft;offsetY=e.clientY-panel.offsetTop;header.style.cursor='grabbing';});
+  header.addEventListener('touchstart',e=>{dragging=true;const t=e.touches[0];offsetX=t.clientX-panel.offsetLeft;offsetY=t.clientY-panel.offsetTop;}, {passive:true});
   document.addEventListener('mousemove',e=>{if(!dragging)return;panel.style.left=(e.clientX-offsetX)+'px';panel.style.top=(e.clientY-offsetY)+'px';panel.style.right='auto';});
+  document.addEventListener('touchmove',e=>{if(!dragging)return;const t=e.touches[0];panel.style.left=(t.clientX-offsetX)+'px';panel.style.top=(t.clientY-offsetY)+'px';}, {passive:true});
   document.addEventListener('mouseup',()=>{if(dragging){dragging=false;header.style.cursor='move';savePrefs();}});
+  document.addEventListener('touchend',()=>{if(dragging){dragging=false;savePrefs();}}, {passive:true});
 
   new ResizeObserver(()=>savePrefs()).observe(panel);
 
